@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 class Program
@@ -28,6 +30,12 @@ class Program
         // Petr: 2
         // Elena: 3
 
+        var userComments = context.BlogComments.GroupBy(comment => comment.UserName)
+            .Select(user => new { user.Key, Count = user.Count() });
+        
+        foreach (var userComment in userComments)
+            Console.WriteLine($"{userComment.Key}: {userComment.Count}");
+        
         Console.WriteLine("Posts ordered by date of last comment. Result should include text of last comment:");
         //ToDo: write a query and dump the data to console
         // Expected result (format could be different, e.g. object serialized to JSON is ok):
@@ -35,7 +43,13 @@ class Program
         // Post1: '2020-03-05', '8'
         // Post3: '2020-02-14', '9'
 
+        var orderedPosts = context.BlogPosts.Include(post => post.Comments).Select(post => new
+            { post.Title, post.Comments.OrderByDescending(comment => comment.CreatedDate).First().CreatedDate,
+                post.Comments.OrderByDescending(comment => comment.CreatedDate).First().Text })
+            .OrderByDescending(post => post.CreatedDate);
 
+        foreach (var orderedPost in orderedPosts)
+            Console.WriteLine(orderedPost);
         Console.WriteLine("How many last comments each user left:");
         // 'last comment' is the latest Comment in each Post
         //ToDo: write a query and dump the data to console
@@ -43,7 +57,14 @@ class Program
         // Ivan: 2
         // Petr: 1
 
-            
+        var lastComments = context.BlogPosts.Include((post => post.Comments)).Select(post => new
+            { post.Comments.OrderByDescending(comment => comment.CreatedDate).First().UserName })
+            .GroupBy(c => c.UserName).Select(c => new
+            { c.Key, Count = c.Count() });
+
+        foreach (var lastComment in lastComments)
+            Console.WriteLine(lastComment);
+
         // Console.WriteLine(
         //     JsonSerializer.Serialize(BlogService.NumberOfCommentsPerUser(context)));
         // Console.WriteLine(
